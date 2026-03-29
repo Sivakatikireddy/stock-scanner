@@ -12,7 +12,6 @@ stocks = [
     "GTLINFRA.NS"
 ]
 
-# Get token from GitHub Secrets
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = "1811269438"
 
@@ -46,37 +45,32 @@ def get_data(stock):
         return None
 
 
-# ---------------- PATTERN CHECK ----------------
+# ---------------- PATTERN CHECK (FIXED) ----------------
 def check_pattern(df):
     try:
         if df is None or len(df) < 50:
             return False
 
-        # Range (accumulation)
+        # Rolling calculations
         high_50 = df['High'].rolling(50).max()
         low_50 = df['Low'].rolling(50).min()
-        range_val = (high_50 - low_50) / low_50
-
-        # Volume spike
         avg_vol = df['Volume'].rolling(20).mean()
-        volume_spike = df['Volume'] / avg_vol
-
-        # Breakout level
         recent_high = df['High'].rolling(20).max()
 
+        # Latest values only
         latest = df.iloc[-1]
 
-        cond1 = range_val.iloc[-1] < 0.3
-        cond2 = volume_spike.iloc[-1] > 2
-        cond3 = latest['Close'] > 0.9 * recent_high.iloc[-1]
+        range_val = (high_50.iloc[-1] - low_50.iloc[-1]) / low_50.iloc[-1]
+        volume_spike = latest['Volume'] / avg_vol.iloc[-1]
+        breakout_level = recent_high.iloc[-1]
 
-        # Avoid already pumped stocks
+        # Conditions
+        cond1 = range_val < 0.3
+        cond2 = volume_spike > 2
+        cond3 = latest['Close'] > 0.9 * breakout_level
         cond4 = latest['Close'] < 1.5 * df['Close'].iloc[-30]
 
-        if cond1 and cond2 and cond3 and cond4:
-            return True
-
-        return False
+        return cond1 and cond2 and cond3 and cond4
 
     except Exception as e:
         print("❌ Feature error:", e)
@@ -87,7 +81,7 @@ def check_pattern(df):
 def run_scanner():
     print("🚀 Running scanner...")
 
-    # 🔥 TEST MESSAGE (keep for now)
+    # ✅ Test message (keep for now)
     send_alert("✅ GitHub scanner is working")
 
     found = []
@@ -99,7 +93,7 @@ def run_scanner():
         if check_pattern(df):
             found.append(stock)
 
-    # Send results
+    # Send result
     if found:
         message = "🚀 Breakout Candidates:\n" + "\n".join(found)
         send_alert(message)
