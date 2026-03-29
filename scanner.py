@@ -29,7 +29,6 @@ def send_alert(message):
         })
 
         print("✅ Alert sent:", message)
-        print("Response:", response.text)
 
     except Exception as e:
         print("❌ Telegram Error:", e)
@@ -47,7 +46,7 @@ def get_data(stock):
         return None
 
 
-# ---------------- PATTERN CHECK (ERROR-FREE) ----------------
+# ---------------- PATTERN CHECK (FINAL CLEAN) ----------------
 def check_pattern(df):
     try:
         if df is None or len(df) < 60:
@@ -59,23 +58,28 @@ def check_pattern(df):
         avg_vol = df['Volume'].rolling(20).mean()
         recent_high = df['High'].rolling(20).max()
 
-        # Latest row
-        latest = df.iloc[-1]
+        # Extract scalar values safely (NO warnings)
+        high_val = high_50.iloc[-1]
+        low_val = low_50.iloc[-1]
+        avg_vol_val = avg_vol.iloc[-1]
+        breakout_val = recent_high.iloc[-1]
 
-        # Convert to scalar values safely
-        high_val = float(high_50.iloc[-1])
-        low_val = float(low_50.iloc[-1])
-        avg_vol_val = float(avg_vol.iloc[-1])
-        breakout_val = float(recent_high.iloc[-1])
+        close_now = df['Close'].iloc[-1]
+        volume_now = df['Volume'].iloc[-1]
+        close_30 = df['Close'].iloc[-30]
 
-        close_now = float(latest['Close'])
-        volume_now = float(latest['Volume'])
-        close_30 = float(df['Close'].iloc[-30])
-
-        # Handle NaN values
+        # Convert to float safely
         values = [high_val, low_val, avg_vol_val, breakout_val, close_now, volume_now, close_30]
         if any(pd.isna(values)):
             return False
+
+        high_val = float(high_val)
+        low_val = float(low_val)
+        avg_vol_val = float(avg_vol_val)
+        breakout_val = float(breakout_val)
+        close_now = float(close_now)
+        volume_now = float(volume_now)
+        close_30 = float(close_30)
 
         # Calculations
         range_val = (high_val - low_val) / low_val
@@ -87,7 +91,7 @@ def check_pattern(df):
         cond3 = close_now > 0.9 * breakout_val
         cond4 = close_now < 1.5 * close_30
 
-        return bool(cond1 and cond2 and cond3 and cond4)
+        return cond1 and cond2 and cond3 and cond4
 
     except Exception as e:
         print("❌ Feature error:", e)
@@ -98,7 +102,7 @@ def check_pattern(df):
 def run_scanner():
     print("🚀 Running scanner...")
 
-    # ✅ Test message (you can remove later)
+    # Test message (remove later if you want)
     send_alert("✅ GitHub scanner is working")
 
     found = []
