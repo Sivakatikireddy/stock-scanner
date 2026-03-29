@@ -39,16 +39,18 @@ def send_alert(message):
 def get_data(stock):
     try:
         df = yf.download(stock, period="3mo", interval="1d", progress=False)
+        if df is None or df.empty:
+            return None
         return df
     except Exception as e:
         print(f"❌ Data error for {stock}: {e}")
         return None
 
 
-# ---------------- PATTERN CHECK (FIXED) ----------------
+# ---------------- PATTERN CHECK (ERROR-FREE) ----------------
 def check_pattern(df):
     try:
-        if df is None or len(df) < 50:
+        if df is None or len(df) < 60:
             return False
 
         # Rolling calculations
@@ -57,20 +59,35 @@ def check_pattern(df):
         avg_vol = df['Volume'].rolling(20).mean()
         recent_high = df['High'].rolling(20).max()
 
-        # Latest values only
+        # Latest row
         latest = df.iloc[-1]
 
-        range_val = (high_50.iloc[-1] - low_50.iloc[-1]) / low_50.iloc[-1]
-        volume_spike = latest['Volume'] / avg_vol.iloc[-1]
-        breakout_level = recent_high.iloc[-1]
+        # Convert to scalar values safely
+        high_val = float(high_50.iloc[-1])
+        low_val = float(low_50.iloc[-1])
+        avg_vol_val = float(avg_vol.iloc[-1])
+        breakout_val = float(recent_high.iloc[-1])
+
+        close_now = float(latest['Close'])
+        volume_now = float(latest['Volume'])
+        close_30 = float(df['Close'].iloc[-30])
+
+        # Handle NaN values
+        values = [high_val, low_val, avg_vol_val, breakout_val, close_now, volume_now, close_30]
+        if any(pd.isna(values)):
+            return False
+
+        # Calculations
+        range_val = (high_val - low_val) / low_val
+        volume_spike = volume_now / avg_vol_val
 
         # Conditions
         cond1 = range_val < 0.3
         cond2 = volume_spike > 2
-        cond3 = latest['Close'] > 0.9 * breakout_level
-        cond4 = latest['Close'] < 1.5 * df['Close'].iloc[-30]
+        cond3 = close_now > 0.9 * breakout_val
+        cond4 = close_now < 1.5 * close_30
 
-        return cond1 and cond2 and cond3 and cond4
+        return bool(cond1 and cond2 and cond3 and cond4)
 
     except Exception as e:
         print("❌ Feature error:", e)
@@ -81,7 +98,7 @@ def check_pattern(df):
 def run_scanner():
     print("🚀 Running scanner...")
 
-    # ✅ Test message (keep for now)
+    # ✅ Test message (you can remove later)
     send_alert("✅ GitHub scanner is working")
 
     found = []
@@ -93,7 +110,7 @@ def run_scanner():
         if check_pattern(df):
             found.append(stock)
 
-    # Send result
+    # Send results
     if found:
         message = "🚀 Breakout Candidates:\n" + "\n".join(found)
         send_alert(message)
