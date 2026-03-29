@@ -23,7 +23,7 @@ def send_alert(message):
             return
 
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        response = requests.get(url, params={
+        requests.get(url, params={
             "chat_id": CHAT_ID,
             "text": message
         })
@@ -46,7 +46,7 @@ def get_data(stock):
         return None
 
 
-# ---------------- PATTERN CHECK (FINAL CLEAN) ----------------
+# ---------------- PATTERN CHECK (FINAL PERFECT) ----------------
 def check_pattern(df):
     try:
         if df is None or len(df) < 60:
@@ -58,28 +58,20 @@ def check_pattern(df):
         avg_vol = df['Volume'].rolling(20).mean()
         recent_high = df['High'].rolling(20).max()
 
-        # Extract scalar values safely (NO warnings)
-        high_val = high_50.iloc[-1]
-        low_val = low_50.iloc[-1]
-        avg_vol_val = avg_vol.iloc[-1]
-        breakout_val = recent_high.iloc[-1]
+        # Extract pure scalar values (NO warnings ever)
+        high_val = high_50.values[-1]
+        low_val = low_50.values[-1]
+        avg_vol_val = avg_vol.values[-1]
+        breakout_val = recent_high.values[-1]
 
-        close_now = df['Close'].iloc[-1]
-        volume_now = df['Volume'].iloc[-1]
-        close_30 = df['Close'].iloc[-30]
+        close_now = df['Close'].values[-1]
+        volume_now = df['Volume'].values[-1]
+        close_30 = df['Close'].values[-30]
 
-        # Convert to float safely
+        # Handle NaN
         values = [high_val, low_val, avg_vol_val, breakout_val, close_now, volume_now, close_30]
         if any(pd.isna(values)):
             return False
-
-        high_val = float(high_val)
-        low_val = float(low_val)
-        avg_vol_val = float(avg_vol_val)
-        breakout_val = float(breakout_val)
-        close_now = float(close_now)
-        volume_now = float(volume_now)
-        close_30 = float(close_30)
 
         # Calculations
         range_val = (high_val - low_val) / low_val
@@ -102,7 +94,7 @@ def check_pattern(df):
 def run_scanner():
     print("🚀 Running scanner...")
 
-    # Test message (remove later if you want)
+    # Test message
     send_alert("✅ GitHub scanner is working")
 
     found = []
