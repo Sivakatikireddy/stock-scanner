@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas as pd
 import requests
+import os
 
 # ---------------- SETTINGS ----------------
 stocks = [
@@ -11,20 +12,28 @@ stocks = [
     "GTLINFRA.NS"
 ]
 
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+# Get token from GitHub Secrets
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = "1811269438"
 
 # ---------------- TELEGRAM ALERT ----------------
 def send_alert(message):
     try:
+        if not BOT_TOKEN:
+            print("❌ BOT_TOKEN is missing")
+            return
+
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         response = requests.get(url, params={
             "chat_id": CHAT_ID,
             "text": message
         })
-        print("Alert sent:", message)
+
+        print("✅ Alert sent:", message)
+        print("Response:", response.text)
+
     except Exception as e:
-        print("Telegram Error:", e)
+        print("❌ Telegram Error:", e)
 
 
 # ---------------- FETCH DATA ----------------
@@ -33,11 +42,11 @@ def get_data(stock):
         df = yf.download(stock, period="3mo", interval="1d", progress=False)
         return df
     except Exception as e:
-        print(f"Data error for {stock}: {e}")
+        print(f"❌ Data error for {stock}: {e}")
         return None
 
 
-# ---------------- FEATURE LOGIC ----------------
+# ---------------- PATTERN CHECK ----------------
 def check_pattern(df):
     try:
         if df is None or len(df) < 50:
@@ -70,13 +79,16 @@ def check_pattern(df):
         return False
 
     except Exception as e:
-        print("Feature error:", e)
+        print("❌ Feature error:", e)
         return False
 
 
 # ---------------- MAIN SCANNER ----------------
 def run_scanner():
-    print("Running scanner...")
+    print("🚀 Running scanner...")
+
+    # 🔥 TEST MESSAGE (keep for now)
+    send_alert("✅ GitHub scanner is working")
 
     found = []
 
@@ -87,7 +99,7 @@ def run_scanner():
         if check_pattern(df):
             found.append(stock)
 
-    # Send alerts
+    # Send results
     if found:
         message = "🚀 Breakout Candidates:\n" + "\n".join(found)
         send_alert(message)
@@ -95,6 +107,6 @@ def run_scanner():
         print("No strong setups today.")
 
 
-# ---------------- ENTRY POINT ----------------
+# ---------------- ENTRY ----------------
 if __name__ == "__main__":
     run_scanner()
